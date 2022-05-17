@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>MEETING</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<style>
+		body {overflow:hidden;}
+	</style>
+</head>
+
+<body>
+
+<script src="js/lib/threeJS/three.js"></script>
+<script src="js/lib/threeJS/GLTFExporter.js"></script>
+<script src="js/lib/threeJS/GLTFLoader.js"></script>
+<script src="js/lib/threeJS/OBJLoader.js"></script>
+<script src="js/lib/threeJS/dat.gui.js"></script>
+
+<script src="js/playerControl/PlayerControl.js"></script>
+
+<script src="js/deformation/linear_algebra/emscripten-memory-manager.js"></script>
+<script>
+	let memoryManager = new EmscriptenMemoryManager();
+</script>
+<script src="js/deformation/linear_algebra/complex.js"></script>
+<script src="js/deformation/linear_algebra/complex-dense-matrix.js"></script>
+<script src="js/deformation/linear_algebra/complex-sparse-matrix.js"></script>
+<script src="js/deformation/linear_algebra/dense-matrix.js"></script>
+<script src="js/deformation/linear_algebra/linear-algebra-asm.js"></script>
+<script src="js/deformation/linear_algebra/sparse-matrix.js"></script>
+<script src="js/deformation/linear_algebra/vector.js"></script>
+
+<script src="js/deformation/math.js"></script>
+<script src="js/deformation/Laplacian_Deformation.js"></script>
+
+<script src="js/Main.js"></script>
+
+<script  type="module">
+
+	var myMain = new Main();
+	let c = null;
+	myMain.start();
+	myMain.renderer.setClearColor(0xffffff,0)
+	myMain.scene.background = new THREE.Color( 0xffffff );
+	new PlayerControl(myMain.camera);
+
+	for(var i=0;i<10;i++){
+		var pointLight = new THREE.PointLight(0xffffff) // 创建点光源
+		myMain.scene.add(pointLight) // 将点光源添加到场景
+	}
+
+	//渲染模型并加载数据
+	GLB("test1")
+	test()
+
+	let panel = new dat.GUI({ width: 310 });
+
+	var points_mapping = []
+	var defomation_tool = null
+	var rotated_points = []
+	var submesh = null
+	var deg = -5
+	let guicontrol_init = new function () {
+		this.init = function () {
+			var indexes = c.geometry.index.array
+			var positions = c.geometry.attributes.position.array
+			var points = []
+			var faces = []
+			for (var i = 0; i < positions.length; i += 3) {
+				var pos = []
+				for (var j = i; j < i + 3; j++) {
+					pos.push(positions[j])
+				}
+				points.push(pos)
+			}
+			for (var i = 0; i < indexes.length; i += 3) {
+				var face = []
+				for (var j = i; j < i + 3; j++) {
+					face.push(indexes[j])
+				}
+				faces.push(face)
+			}
+			// console.log(indexes)
+			// console.log(positions)
+
+			//取出要形变的部分
+			submesh = Tool.submesh(points, faces, function (point) {
+				return point[0] > 22
+			})
+			points_mapping = submesh.mapping
+
+			// 形变初始化
+			defomation_tool = new Laplacaian_Deformation(submesh.points, submesh.faces, function (point) {
+				return point[0] > 22
+			})
+			defomation_tool.init_submesh_mapping_and_global_positions(submesh.mapping, positions)
+		}
+	}
+	panel.add(guicontrol_init, 'init')
+
+	let guicontrol = new function () {
+		this.play = function () {
+			var positions = c.geometry.attributes.position.array
+			// 旋转轴，旋转角度，旋转轴的原点
+			rotated_points = Rotation_Tool.rotate(submesh.points, [0, 1, 0], deg, [22, -8.45, -148])
+			deg -= 5
+			// var rotated_points_array = []
+			// for (var i = 0; i < rotated_points.length; i++) {
+			// 	for (var j = 0; j < 3; j++) {
+			// 		rotated_points_array.push(rotated_points[i][j])
+			// 	}
+			// }
+			for (var i = 0; i < rotated_points.length; i++) {
+				var id = points_mapping[i]
+				for (var j = 0; j < 3; j++) {
+					positions[j + 3 * id] = rotated_points[i][j]
+				}
+			}
+			rotated_points = defomation_tool.deformation_with_new_points(positions)
+
+			// 变形完毕后更新Mesh
+			let verticesArr = rotated_points;//变形后的顶点数组
+			// let verticesArr = positions;//变形后的顶点数组
+			let ViewMaterial = c.material.clone();
+			let geo = c.geometry.clone();
+			let vertices = new THREE.BufferAttribute(new Float32Array(verticesArr), 3);
+			geo.setAttribute('position', vertices);
+			let geoMesh = new THREE.Mesh(geo, ViewMaterial);
+			geoMesh.scale.set(0.1,0.1,0.1)
+			geoMesh.position.y -= 15
+
+			geoMesh.quaternion._x = c.quaternion._x
+			geoMesh.quaternion._y = c.quaternion._y
+			geoMesh.quaternion._z = c.quaternion._z
+			geoMesh.quaternion._w = c.quaternion._w
+
+			//完成后取消下两行注释进行更新
+			myMain.scene.remove(c);
+			myMain.scene.add(geoMesh);
+			c = geoMesh
+			// console.log(c)
+		}
+
+	};
+	panel.add(guicontrol, 'play');
+
+	const boxgeometry = new THREE.BoxGeometry( 2, 1, 1 );
+	const boxmaterial = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+	let boxcube = new THREE.Mesh( boxgeometry, boxmaterial );
+	// let newbox= boxcube.clone();
+	boxcube.position.x += 4;
+	let bound = new THREE.Box3().setFromObject(boxcube);//使用包围盒x坐标选取变形部分
+	//旋转矩阵
+	// let mat = new THREE.Matrix4().set(0.7071067811865475,0.7071067811865476,0,0,-0.7071067811865476,0.7071067811865475,0,0,0,0,1,0,0,1,0,1)
+	//取消注释查看效果
+	// scene.add(boxcube);
+	// newbox.applyMatrix(mat);
+	// let box3Helper = new THREE.Box3Helper(bound);
+	// scene.add(box3Helper);
+
+
+	function GLB(url) {
+		console.log("url")
+		new THREE.GLTFLoader().load(url+".glb", (glb) => {
+			// console.log(glb,2)
+			glb.scene.traverse(o=>{
+				if(o instanceof THREE.Mesh){
+					c = o;
+					console.log(o)
+					//数据在o.geometry里面，可以在控制台点开看
+					o.material.transparent=false
+					// console.log("o.material",o.material)
+					o.material = new THREE.MeshBasicMaterial({
+						map: o.material.map
+					});
+					o.material.side=2
+					o.scale.set(0.1,0.1,0.1)
+					o.position.y -= 15;
+					myMain.scene.add(o)
+				}
+			})
+		});
+	}
+
+</script>
+</body>
+</html>
