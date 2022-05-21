@@ -123,5 +123,6 @@ output_new/
 *.obj
 *.png
 *.stl
+*.glb
 sdf/env
 sdf/docs

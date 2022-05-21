@@ -162,8 +162,8 @@ class Anchor_Selector {
         return select_indexes
     }
 
-    select_all () {
-        var permutation = new Array()
+    select_all() {
+        var permutation = []
         for (var i = 0; i < this.points.length; i++) {
             permutation.push(i)
         }
@@ -171,6 +171,39 @@ class Anchor_Selector {
 
         for (var i = 0; i < permutation.length; i++) {
             select_indexes.push(this.points_map[permutation[i]])
+        }
+        return select_indexes
+    }
+
+    select_bfs() {
+        let select_indexes = [0]
+        let dep = []
+        for (let i = 0; i < this.points.length; i++) {
+            dep.push(1e9)
+        }
+        while (select_indexes.length < this.ratio * this.points.length) {
+            let origin = select_indexes[select_indexes.length - 1]
+            let queue = [origin]
+            dep[origin] = 0
+            let head = 0
+            while (head < queue.length) {
+                let x = queue[head]
+                head++;
+                for (let i = 0; i < this.linking_edges[x].length; i++) {
+                    let y = this.linking_edges[x][i]
+                    if (dep[y] > dep[x] + 1) {
+                        dep[y] = dep[x] + 1
+                        queue.push(y)
+                    }
+                }
+            }
+            let select = 0
+            for (let i = 0; i < dep.length; i++) {
+                if (dep[i] > dep[select]) {
+                    select = i
+                }
+            }
+            select_indexes.push(select)
         }
         return select_indexes
     }
@@ -188,7 +221,8 @@ class Laplacaian_Deformation {
 
         this.laplacian_position_mat_data = math.multiply(this.laplacian_mat_data, this.points)
 
-        this.anchor_indexes = new Anchor_Selector(constrain, this.points).select_all()
+        // this.anchor_indexes = new Anchor_Selector(constrain, this.points).select_all()
+        this.anchor_indexes = new Anchor_Selector(constrain, this.points, this.linking_edges).select_bfs()
         this.revise_laplacian_mat_data_by_anchor()
 
         // this.laplacian_coefficient_data = this.pre_calculate_laplacian_coefficient_data()
