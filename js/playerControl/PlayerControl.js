@@ -423,9 +423,9 @@ function MouseManager(){
         console.log(event);
     }
     this.init=function() {
-        document.addEventListener( 'mousemove',scope.onMouseMove, true );
-        document.addEventListener( 'mouseup', scope.onMouseUp, true );
-        document.addEventListener( 'mousedown',scope.onMouseDown, true );
+        // document.addEventListener( 'mousemove',scope.onMouseMove, true );
+        // document.addEventListener( 'mouseup', scope.onMouseUp, true );
+        // document.addEventListener( 'mousedown',scope.onMouseDown, true );
         document.addEventListener( 'mousewheel', scope.onMouseWheel, false );
     }
 }

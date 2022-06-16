@@ -259,7 +259,7 @@ class Laplacaian_Deformation {
     }
 
     // entry
-    deformation(axis, angle, origin) {
+    deformation(axis, angle, origin) { // 传形变的参数，返回拉普拉斯优化后的坐标
         var new_points = Rotation_Tool.rotate(this.points, axis, angle, origin)
         // console.log("rotated_select_points", rotated_select_points)
 
@@ -268,7 +268,7 @@ class Laplacaian_Deformation {
     }
 
     //entry
-    deformation_with_new_points(new_points_array) {
+    deformation_with_new_points(new_points_array) { // 传直接形变后的坐标，返回拉普拉斯优化后的坐标
         var new_points = []
         for (var i = 0; i < this.submesh_mapping.length; i++) {
             var pos = []
@@ -304,7 +304,7 @@ class Laplacaian_Deformation {
         return this.get_deformed_global_positions(ret_points._data)
     }
 
-    revise_laplacian_position_mat_data(new_points) {
+    revise_laplacian_position_mat_data(new_points) { // 对旋转的仿射修正
         var new_laplacian_position = []
         for (var i = 0; i < this.laplacian_position_mat_data.length; i++) {
             var coe = this.get_revise_coefficient(new_points, i)._data
@@ -323,7 +323,7 @@ class Laplacaian_Deformation {
         return new_laplacian_position
     }
 
-    get_revise_coefficient(new_points, i) {
+    get_revise_coefficient(new_points, i) { // 对单个点求修正的仿射变换
         var pos = this.points[i]
         var A_data = [[pos[0], 0, pos[2], -pos[1]],
                       [pos[1], -pos[2], 0, pos[0]],
@@ -347,7 +347,7 @@ class Laplacaian_Deformation {
         return Tool.get_mat_data2(math.multiply(ttmp, math.matrix(b_data)))
     }
 
-    get_linking_edges(faces) {
+    get_linking_edges(faces) { // 从面得到邻接边
         var linking_edges = Tool.init_two_demension_array(this.num_points, 0)
         faces.forEach(function(face, _) {
             console.assert(face.length === 3, `${face}必须为三角面`)
@@ -437,7 +437,7 @@ class Laplacaian_Deformation {
         // return ret_data
     }
 
-    cal_matrix_inv(L) {
+    cal_matrix_inv(L) { // 矩阵取逆
         let chol = L.chol()
         let I = DenseMatrix.identity(L.nRows(), L.nRows())
         let L_inv = chol.solvePositiveDefinite(I)

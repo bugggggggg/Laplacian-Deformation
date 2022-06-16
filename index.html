@@ -58,9 +58,8 @@
 
 	var points_mapping = []
 	var defomation_tool = null
-	var rotated_points = []
-	var submesh = null
-	var deg = -5
+	let submesh = null
+
 	let guicontrol_init = new function () {
 		this.init = function () {
 			var indexes = c.geometry.index.array
@@ -86,66 +85,71 @@
 
 			//取出要形变的部分
 			submesh = Tool.submesh(points, faces, function (point) {
-				return point[0] > 22
+				return point[0] > 19
 			})
 			points_mapping = submesh.mapping
 
 			// 形变初始化
 			defomation_tool = new Laplacaian_Deformation(submesh.points, submesh.faces, function (point) {
-				return point[0] > 22
+				return point[0] > 20
 			})
 			defomation_tool.init_submesh_mapping_and_global_positions(submesh.mapping, positions)
 		}
 	}
 	panel.add(guicontrol_init, 'init')
 
-	let guicontrol = new function () {
-		this.play = function () {
-			var positions = c.geometry.attributes.position.array
-			// 旋转轴，旋转角度，旋转轴的原点
-			rotated_points = Rotation_Tool.rotate(submesh.points, [0, 1, 0], deg, [22, -8.45, -148])
-			deg -= 5
-			// var rotated_points_array = []
-			// for (var i = 0; i < rotated_points.length; i++) {
-			// 	for (var j = 0; j < 3; j++) {
-			// 		rotated_points_array.push(rotated_points[i][j])
-			// 	}
-			// }
-			for (var i = 0; i < rotated_points.length; i++) {
-				var id = points_mapping[i]
-				for (var j = 0; j < 3; j++) {
-					positions[j + 3 * id] = rotated_points[i][j]
-				}
+	let deform = function (deg, axis, origin) {
+		var positions = c.geometry.attributes.position.array
+		// 旋转轴，旋转角度，旋转轴的原点
+		let rotated_points = Rotation_Tool.rotate(submesh.points, axis, deg, origin)
+		// var rotated_points_array = []
+		// for (var i = 0; i < rotated_points.length; i++) {
+		// 	for (var j = 0; j < 3; j++) {
+		// 		rotated_points_array.push(rotated_points[i][j])
+		// 	}
+		// }
+		for (var i = 0; i < rotated_points.length; i++) {
+			var id = points_mapping[i]
+			for (var j = 0; j < 3; j++) {
+				positions[j + 3 * id] = rotated_points[i][j]
 			}
-			rotated_points = defomation_tool.deformation_with_new_points(positions)
-
-			// 变形完毕后更新Mesh
-			let verticesArr = rotated_points;//变形后的顶点数组
-			// let verticesArr = positions;//变形后的顶点数组
-			let ViewMaterial = c.material.clone();
-			let geo = c.geometry.clone();
-			let vertices = new THREE.BufferAttribute(new Float32Array(verticesArr), 3);
-			geo.setAttribute('position', vertices);
-			let geoMesh = new THREE.Mesh(geo, ViewMaterial);
-			geoMesh.scale.set(0.1,0.1,0.1)
-			geoMesh.position.y -= 15
-
-			geoMesh.quaternion._x = c.quaternion._x
-			geoMesh.quaternion._y = c.quaternion._y
-			geoMesh.quaternion._z = c.quaternion._z
-			geoMesh.quaternion._w = c.quaternion._w
-
-			//完成后取消下两行注释进行更新
-			myMain.scene.remove(c);
-			myMain.scene.add(geoMesh);
-			c = geoMesh
-			// console.log(c)
 		}
+		rotated_points = defomation_tool.deformation_with_new_points(positions)
 
-	};
-	panel.add(guicontrol, 'play');
+		// 变形完毕后更新Mesh
+		let verticesArr = rotated_points;//变形后的顶点数组
+		// let verticesArr = positions;//变形后的顶点数组
+		let ViewMaterial = c.material.clone();
+		let geo = c.geometry.clone();
+		let vertices = new THREE.BufferAttribute(new Float32Array(verticesArr), 3);
+		geo.setAttribute('position', vertices);
+		let geoMesh = new THREE.Mesh(geo, ViewMaterial);
+		geoMesh.scale.set(0.1,0.1,0.1)
+		geoMesh.position.y -= 15
 
-	const boxgeometry = new THREE.BoxGeometry( 2, 1, 1 );
+		geoMesh.quaternion._x = c.quaternion._x
+		geoMesh.quaternion._y = c.quaternion._y
+		geoMesh.quaternion._z = c.quaternion._z
+		geoMesh.quaternion._w = c.quaternion._w
+
+		//完成后取消下两行注释进行更新
+		myMain.scene.remove(c);
+		myMain.scene.add(geoMesh);
+		c = geoMesh
+		// console.log(c)
+	}
+
+	let gui_slider_controller = new function () {
+		this.rotate_angle = 0
+	}
+	panel.add(gui_slider_controller, 'rotate_angle', -60, 60).step(1).name('right_arm_y').onChange(angle => {
+		deform(angle, [0, 1, 0], [20, -7.45, -140])
+	})
+	panel.add(gui_slider_controller, 'rotate_angle', -60, 60).step(1).name('right_arm_z').onChange(angle => {
+		deform(angle, [0, 0, 1], [20, -7.45, -140])
+	})
+
+	const boxgeometry = new THREE.BoxGeometry(2, 1, 1 );
 	const boxmaterial = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
 	let boxcube = new THREE.Mesh( boxgeometry, boxmaterial );
 	// let newbox= boxcube.clone();
